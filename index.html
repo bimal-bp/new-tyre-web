@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Heavy Haul | Tyre Lifecycle Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0b3b5f;
+            --secondary: #e76f51;
+            --accent: #2a9d8f;
+            --light: #f4f6f9;
+            --dark: #1e2a3a;
+            --warning-bg: #fff3cd;
+            --success-bg: #d1e7dd;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: #eef2f5;
+            font-family: 'Segoe UI', Roboto, system-ui;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--primary);
+            color: white;
+            padding: 1.5rem 1rem;
+            border-radius: 24px;
+            margin-right: 24px;
+            height: calc(100vh - 40px);
+            position: sticky;
+            top: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .main-content {
+            flex: 1;
+            min-width: 280px;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin-top: 2rem;
+        }
+        .sidebar-menu li { margin-bottom: 12px; }
+        .sidebar-menu a {
+            color: #e0e7ff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 40px;
+            transition: 0.2s;
+            font-weight: 500;
+        }
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background: var(--accent);
+            color: white;
+        }
+        .equipment-card, .lifecycle-card {
+            background: white;
+            border-radius: 24px;
+            padding: 1.25rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+        }
+        .tyre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .tyre-position {
+            background: var(--light);
+            border-radius: 20px;
+            text-align: center;
+            padding: 12px 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            position: relative;
+        }
+        .tyre-position.selected {
+            border-color: var(--accent);
+            background: #e2f0ee;
+            box-shadow: 0 4px 12px rgba(42,157,143,0.3);
+        }
+        .tyre-position.empty {
+            background: #f8d7da;
+            opacity: 0.7;
+        }
+        .tyre-number {
+            font-weight: bold;
+            font-size: 0.8rem;
+            word-break: break-word;
+        }
+        .badge-status {
+            font-size: 0.7rem;
+            margin-top: 6px;
+        }
+        .step-badge {
+            background: var(--primary);
+            color: white;
+            border-radius: 30px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+        .lifecycle-step {
+            background: #f8f9fc;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 16px;
+        }
+        .btn-icon {
+            border-radius: 40px;
+            padding: 6px 14px;
+        }
+        .running-total {
+            background: #e9ecef;
+            border-radius: 20px;
+            padding: 12px;
+            font-weight: 600;
+        }
+        .content-section { display: none; }
+        .active-content { display: block; }
+        .scrap-item {
+            background: white;
+            border-radius: 20px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--secondary);
+        }
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; margin-bottom: 20px; height: auto; }
+        }
+        .kmr-hmr-badge {
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <div class="text-center mb-4">
+        <i class="fas fa-tachometer-alt fa-2x"></i>
+        <h5 class="mt-2">TyreFlow</h5>
+    </div>
+    <ul class="sidebar-menu">
+        <li><a href="#" class="active" data-section="live-view"><i class="fas fa-truck-moving"></i> Equipment View</a></li>
+        <li><a href="#" data-section="lifecycle-track"><i class="fas fa-chart-line"></i> Tyre Lifecycle Steps</a></li>
+        <li><a href="#" data-section="scrap-archive"><i class="fas fa-recycle"></i> Scrap & History</a></li>
+        <li><a href="#" data-section="admin"><i class="fas fa-database"></i> Data Control</a></li>
+    </ul>
+</div>
+
+<div class="main-content">
+    <!-- 1. EQUIPMENT VIEW -->
+    <div id="live-view" class="content-section active-content">
+        <div class="equipment-card">
+            <h4><i class="fas fa-truck"></i> Tipper / Equipment</h4>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <label>Select Equipment</label>
+                    <select id="equipmentSelect" class="form-select">
+                        <option value="">-- Choose --</option>
+                        <option value="AP39UUQ095">AP39UUQ095</option>
+                        <option value="AP39UUQ097">AP39UUQ097</option>
+                        <option value="AP39UW9808">AP39UW9808</option>
+                        <option value="AP39UW9811">AP39UW9811</option>
+                        <option value="AP39UUQ451">AP39UUQ451</option>
+                        <option value="AP39YU4652">AP39YU4652</option>
+                        <option value="AP39WC0921">AP39WC0921</option>
+                        <option value="AP39WC0924">AP39WC0924</option>
+                        <option value="AP39WC0928">AP39WC0928</option>
+                        <option value="AP39WF2057">AP39WF2057</option>
+                        <option value="AP39WF2051">AP39WF2051</option>
+                        <option value="AP39WF2052">AP39WF2052</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <div class="alert alert-info mt-2 mt-md-0" id="selectedInfoPanel">
+                        <strong>Selected position:</strong> <span id="selectedPositionLabel">—</span><br>
+                        <span id="currentTyreMeta">No tyre</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="equipment-card">
+            <h5><i class="fas fa-grip-vertical"></i> Tyre Positions (10)</h5>
+            <div class="tyre-grid" id="tyreGridContainer"></div>
+            <div class="mt-3 text-center">
+                <button class="btn btn-primary" id="actionModalBtn" disabled><i class="fas fa-exchange-alt"></i> Manage Tyre (Add/Move/Reuse)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. LIFECYCLE TRACK (KMR/HMR steps) -->
+    <div id="lifecycle-track" class="content-section">
+        <div class="equipment-card">
+            <h4><i class="fas fa-chart-simple"></i> Tyre Lifecycle & KMR/HMR Log</h4>
+            <p class="text-muted">Follow structured steps: Assembly Add → Move → Run → Transfer → Deactivate → Total Life</p>
+            <div class="mb-3">
+                <label>Select Tyre (Active or Scrap) to simulate steps</label>
+                <select id="lifecycleTyreSelect" class="form-select">
+                    <option value="">-- Choose Tyre Number --</option>
+                </select>
+            </div>
+            <div id="stepSimulationPanel" class="mt-3">
+                <div class="alert alert-secondary">Select a tyre to view & apply KMR/HMR steps</div>
+            </div>
+            <hr>
+            <h6>Lifecycle Summary (KMR/HMR run totals)</h6>
+            <div id="totalLifeDisplay" class="running-total mt-2 p-3 bg-light rounded">—</div>
+        </div>
+    </div>
+
+    <!-- 3. SCRAP & HISTORY -->
+    <div id="scrap-archive" class="content-section">
+        <div class="equipment-card">
+            <h4><i class="fas fa-trash-alt"></i> Scrapped Tyres Archive</h4>
+            <div class="row mb-3">
+                <div class="col-md-6"><label>Filter by Equipment</label><select id="scrapEqFilter" class="form-select"></select></div>
+                <div class="col-md-6"><label>Filter by Reason</label><select id="scrapReasonFilter" class="form-select"><option value="">All</option><option value="blast">Blast</option><option value="puncture">Puncture</option><option value="wear">Wear</option><option value="transfer_out">Transfer Out</option></select></div>
+            </div>
+            <div id="scrapListContainer">Loading...</div>
+        </div>
+    </div>
+
+    <!-- 4. ADMIN -->
+    <div id="admin" class="content-section">
+        <div class="equipment-card">
+            <h4>Data Administration</h4>
+            <button class="btn btn-danger mb-2" id="clearAllDataBtn"><i class="fas fa-broom"></i> Reset All Data</button>
+            <button class="btn btn-success mb-2" id="genSampleDataBtn"><i class="fas fa-flask"></i> Generate Demo Data</button>
+            <p class="small mt-2">⚠️ Warning: Reset will remove all stored tyres, history & lifecycle logs.</p>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: TYRE ACTION (ADD/MOVE/REUSE) -->
+<div class="modal fade" id="tyreActionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white"><h5 class="modal-title">Tyre Management</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div id="modalPositionDisplay" class="fw-bold mb-2"></div>
+                <div class="d-flex gap-3 mb-4 flex-wrap">
+                    <button class="btn btn-outline-primary" data-action="add"><i class="fas fa-plus"></i> Add New Tyre</button>
+                    <button class="btn btn-outline-warning" data-action="move"><i class="fas fa-arrows-alt"></i> Move Tyre</button>
+                    <button class="btn btn-outline-success" data-action="reuse"><i class="fas fa-redo-alt"></i> Reuse from Scrap</button>
+                </div>
+                <div id="actionFormsContainer">
+                    <!-- ADD FORM -->
+                    <div id="addForm" style="display:none;">
+                        <h6>➕ Add Tyre (Start of Life)</h6>
+                        <input type="text" id="newTyreNum" class="form-control mb-2" placeholder="Tyre Number">
+                        <label>Initial KMR</label><input type="number" id="initKmr" class="form-control mb-2" placeholder="KMR reading">
+                        <label>Initial HMR</label><input type="number" id="initHmr" class="form-control mb-2" placeholder="HMR reading">
+                        <label>Issue Date</label><input type="date" id="issueDateAdd" class="form-control mb-2">
+                        <button id="confirmAddTyre" class="btn btn-primary">Confirm Assembly Add</button>
+                    </div>
+                    <!-- MOVE FORM -->
+                    <div id="moveForm" style="display:none;">
+                        <h6>🔄 Move Tyre (with KMR/HMR update)</h6>
+                        <label>Current KMR reading before move</label><input type="number" id="moveKmr" class="form-control mb-2" placeholder="Current KMR">
+                        <label>Current HMR reading</label><input type="number" id="moveHmr" class="form-control mb-2" placeholder="Current HMR">
+                        <label>Target Equipment</label><select id="targetEqMove" class="form-select mb-2"></select>
+                        <label>Target Position</label><select id="targetPosMove" class="form-select"></select>
+                        <button id="confirmMoveAction" class="btn btn-warning">Confirm Move & Update Readings</button>
+                    </div>
+                    <!-- REUSE FORM -->
+                    <div id="reuseForm" style="display:none;">
+                        <h6>♻️ Reuse Tyre (Reactivate)</h6>
+                        <select id="reuseScrapSelect" class="form-select mb-2"></select>
+                        <label>New KMR (at reuse moment)</label><input type="number" id="reuseKmr" class="form-control mb-2">
+                        <label>New HMR</label><input type="number" id="reuseHmr" class="form-control mb-2">
+                        <button id="confirmReuse" class="btn btn-success">Reuse Tyre</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // -------- DATA STRUCTURE --------
+    // Each tyre stored as object: { tyreNumber, initialKmr, initialHmr, currentKmr, currentHmr, status, issueDate, scrapReason, removalDate, lifecycleLogs[] }
+    // Equipment data: map positions to tyreId reference
+    let equipmentMap = {}; // { "AP39UUQ095": { "FR-LEFT": tyreId|null, ... } }
+    let tyresMaster = {};  // key = tyreId (unique string)
+    let nextTyreId = 1000;
+
+    const POSITIONS = ["FR-LEFT","FR-RIGHT","CLI","CLO","CRI","CRO","BLI","BLO","BRI","BRO"];
+    const EQUIPMENT_LIST = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
+
+    function initStorage() {
+        const stored = localStorage.getItem("tyreSystemV2");
+        if(stored) {
+            const data = JSON.parse(stored);
+            equipmentMap = data.equipmentMap || {};
+            tyresMaster = data.tyresMaster || {};
+            nextTyreId = data.nextTyreId || 1000;
+        } else {
+            equipmentMap = {};
+            EQUIPMENT_LIST.forEach(eq => {
+                let posObj = {};
+                POSITIONS.forEach(p => posObj[p] = null);
+                equipmentMap[eq] = posObj;
+            });
+            tyresMaster = {};
+        }
+        syncDropdowns();
+    }
+    function persist() {
+        localStorage.setItem("tyreSystemV2", JSON.stringify({ equipmentMap, tyresMaster, nextTyreId }));
+    }
+    function generateTyreId() { return "TYR_" + (nextTyreId++); }
+
+    // Helper: get tyre object
+    function getTyre(tyreId) { return tyresMaster[tyreId]; }
+
+    // create new tyre (assembly add)
+    function createNewTyre(tyreNumber, initialKmr, initialHmr, issueDateStr) {
+        const tyreId = generateTyreId();
+        const now = new Date().toISOString();
+        tyresMaster[tyreId] = {
+            tyreId, tyreNumber, initialKmr: Number(initialKmr)||0, initialHmr: Number(initialHmr)||0,
+            currentKmr: Number(initialKmr)||0, currentHmr: Number(initialHmr)||0,
+            status: "active", issueDate: issueDateStr || now, scrapReason: null, removalDate: null,
+            lifecycleLogs: [{ step: "Tyre Assembly Add", kmr: Number(initialKmr)||0, hmr: Number(initialHmr)||0, timestamp: now }]
+        };
+        return tyreId;
+    }
+
+    // record step (KMR/HMR update with step name)
+    function recordStep(tyreId, stepName, newKmr, newHmr, extraMeta = {}) {
+        if(!tyresMaster[tyreId]) return;
+        let t = tyresMaster[tyreId];
+        t.currentKmr = newKmr;
+        t.currentHmr = newHmr;
+        t.lifecycleLogs = t.lifecycleLogs || [];
+        t.lifecycleLogs.push({ step: stepName, kmr: newKmr, hmr: newHmr, timestamp: new Date().toISOString(), ...extraMeta });
+        persist();
+    }
+
+    // move tyre: from (eq,pos) -> to (eq,pos), requires current KMR/HMR reading before move
+    function moveTyreProcedure(fromEq, fromPos, toEq, toPos, currentKmr, currentHmr) {
+        let tyreId = equipmentMap[fromEq]?.[fromPos];
+        if(!tyreId) return { success: false, msg: "No tyre at source" };
+        let tyre = getTyre(tyreId);
+        if(!tyre) return { success: false, msg: "Tyre missing" };
+        // update readings before move
+        recordStep(tyreId, "T-A Tyre Move (pre-move reading)", currentKmr, currentHmr, { from: `${fromEq}/${fromPos}`, to: `${toEq}/${toPos}` });
+        // perform swap if target occupied
+        let targetTyreId = equipmentMap[toEq]?.[toPos];
+        // assign source to target
+        equipmentMap[toEq][toPos] = tyreId;
+        equipmentMap[fromEq][fromPos] = targetTyreId;  // swap or null
+        // if target existed, update its logs as well (optional)
+        if(targetTyreId) {
+            let targetTyre = getTyre(targetTyreId);
+            if(targetTyre) recordStep(targetTyreId, "Swap/Move (incoming relocation)", targetTyre.currentKmr, targetTyre.currentHmr);
+        }
+        persist();
+        return { success: true, msg: `Moved ${tyre.tyreNumber} to ${toEq}/${toPos}` };
+    }
+
+    // scrap tyre (deactivate)
+    function scrapTyre(equipment, position, reason, closeKmr, closeHmr) {
+        let tyreId = equipmentMap[equipment]?.[position];
+        if(!tyreId) return false;
+        let tyre = tyresMaster[tyreId];
+        tyre.status = "scrapped";
+        tyre.scrapReason = reason;
+        tyre.removalDate = new Date().toISOString();
+        recordStep(tyreId, "Deactivate Tyre", closeKmr, closeHmr, { scrapReason: reason });
+        equipmentMap[equipment][position] = null; // remove from position
+        persist();
+        return true;
+    }
+
+    // Reuse: take scrap tyre, assign to new position with new readings
+    function reuseTyre(scrapTyreId, targetEq, targetPos, newKmr, newHmr) {
+        let tyre = tyresMaster[scrapTyreId];
+        if(!tyre || tyre.status !== "scrapped") return false;
+        tyre.status = "active";
+        tyre.scrapReason = null;
+        tyre.currentKmr = newKmr;
+        tyre.currentHmr = newHmr;
+        tyre.lifecycleLogs.push({ step: "Reused Tyre (reactivation)", kmr: newKmr, hmr: newHmr, timestamp: new Date().toISOString() });
+        // if target position already occupied, swap? we will replace (send old to scrap)
+        let existingTyre = equipmentMap[targetEq]?.[targetPos];
+        if(existingTyre) {
+            let oldT = tyresMaster[existingTyre];
+            if(oldT) { oldT.status = "scrapped"; oldT.scrapReason = "replaced_by_reuse"; recordStep(existingTyre, "Deactivated due to reuse", oldT.currentKmr, oldT.currentHmr); }
+        }
+        equipmentMap[targetEq][targetPos] = scrapTyreId;
+        persist();
+        return true;
+    }
+
+    // life calculation
+    function getTotalLife(tyreId) {
+        let tyre = tyresMaster[tyreId];
+        if(!tyre) return null;
+        let startKmr = tyre.initialKmr;
+        let startHmr = tyre.initialHmr;
+        let endKmr = tyre.currentKmr;
+        let endHmr = tyre.currentHmr;
+        let totalKmr = endKmr - startKmr;
+        let totalHmr = endHmr - startHmr;
+        return { totalKmr, totalHmr, startKmr, startHmr, endKmr, endHmr };
+    }
+
+    // UI Rendering
+    let currentSelectedEq = null, currentSelectedPos = null;
+    function renderTyreGrid() {
+        const container = document.getElementById("tyreGridContainer");
+        if(!currentSelectedEq || !equipmentMap[currentSelectedEq]) { container.innerHTML = "<div class='alert alert-warning'>Select equipment</div>"; return; }
+        let eqData = equipmentMap[currentSelectedEq];
+        container.innerHTML = "";
+        POSITIONS.forEach(pos => {
+            let tyreId = eqData[pos];
+            let tyre = tyreId ? tyresMaster[tyreId] : null;
+            let cls = "tyre-position";
+            if(!tyre) cls += " empty";
+            if(currentSelectedPos === pos) cls += " selected";
+            container.innerHTML += `
+                <div class="${cls}" data-pos="${pos}">
+                    <div class="tyre-number">${tyre ? tyre.tyreNumber : "⚫ EMPTY"}</div>
+                    <div class="badge-status">${tyre ? `KMR:${tyre.currentKmr}` : "---"}</div>
+                    <small>${pos}</small>
+                </div>`;
+        });
+        document.querySelectorAll(".tyre-position").forEach(el => {
+            el.addEventListener("click", (e) => {
+                e.stopPropagation();
+                currentSelectedPos = el.dataset.pos;
+                renderTyreGrid();
+                document.getElementById("selectedPositionLabel").innerText = currentSelectedPos;
+                let tyreId = equipmentMap[currentSelectedEq]?.[currentSelectedPos];
+                let t = tyreId ? tyresMaster[tyreId] : null;
+                document.getElementById("currentTyreMeta").innerHTML = t ? `<strong>${t.tyreNumber}</strong> | KMR ${t.currentKmr} HMR ${t.currentHmr}` : "Empty slot";
+                document.getElementById("actionModalBtn").disabled = false;
+            });
+        });
+    }
+
+    function populateMoveTargets() {
+        let targetEqSelect = document.getElementById("targetEqMove");
+        targetEqSelect.innerHTML = EQUIPMENT_LIST.map(eq => `<option value="${eq}">${eq}</option>`).join("");
+        let targetPosSelect = document.getElementById("targetPosMove");
+        targetPosSelect.innerHTML = POSITIONS.map(p => `<option value="${p}">${p}</option>`).join("");
+    }
+
+    function updateLifecycleDropdown() {
+        let select = document.getElementById("lifecycleTyreSelect");
+        let options = [];
+        for(let tid in tyresMaster) {
+            let t = tyresMaster[tid];
+            options.push({id: tid, name: `${t.tyreNumber} (${t.status})`});
+        }
+        select.innerHTML = "<option value=''>-- Select Tyre --</option>" + options.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
+    }
+
+    function renderLifecyclePanel(tyreId) {
+        let tyre = tyresMaster[tyreId];
+        if(!tyre) return;
+        let logs = tyre.lifecycleLogs || [];
+        let panel = document.getElementById("stepSimulationPanel");
+        let runHtml = `<div class="mb-3"><input type="number" id="runKmrDelta" class="form-control mb-1" placeholder="+KMR run"><input type="number" id="runHmrDelta" class="form-control mb-1" placeholder="+HMR run"><button id="applyRunBtn" class="btn btn-sm btn-secondary">Step 3: T-A Run</button></div>`;
+        runHtml += `<div><input type="number" id="transferKmr" class="form-control mb-1" placeholder="KMR after transfer"><input type="number" id="transferHmr" class="form-control mb-1" placeholder="HMR after transfer"><button id="applyTransferBtn" class="btn btn-sm btn-info">Step 4: Transfer to T-B</button></div>`;
+        runHtml += `<div><input type="number" id="deacKmr" class="form-control mb-1" placeholder="Deactivate KMR"><input type="number" id="deacHmr" class="form-control mb-1" placeholder="Deactivate HMR"><button id="applyDeacBtn" class="btn btn-sm btn-danger mt-1">Step 6: Deactivate Tyre (Scrap)</button></div>`;
+        panel.innerHTML = `<div class="lifecycle-step"><strong>Current KMR: ${tyre.currentKmr} | HMR: ${tyre.currentHmr}</strong></div>${runHtml}<hr><h6>Lifecycle History</h6><div style="max-height:200px; overflow:auto;">${logs.slice().reverse().map(l => `<div>📌 ${l.step}: KMR=${l.kmr} HMR=${l.hmr}</div>`).join("")}</div>`;
+        document.getElementById("applyRunBtn")?.addEventListener("click",()=>{
+            let deltaK = parseInt(document.getElementById("runKmrDelta").value) || 0;
+            let deltaH = parseInt(document.getElementById("runHmrDelta").value) || 0;
+            let newK = tyre.currentKmr + deltaK;
+            let newH = tyre.currentHmr + deltaH;
+            recordStep(tyreId, "T-A Run", newK, newH);
+            renderLifecyclePanel(tyreId);
+            renderTyreGrid();
+            updateLifecycleDropdown();
+            updateTotalLifeDisplay(tyreId);
+        });
+        document.getElementById("applyTransferBtn")?.addEventListener("click",()=>{
+            let newK = parseInt(document.getElementById("transferKmr").value);
+            let newH = parseInt(document.getElementById("transferHmr").value);
+            if(isNaN(newK) || isNaN(newH)) return;
+            recordStep(tyreId, "Transfer to T-B (new equipment)", newK, newH);
+            renderLifecyclePanel(tyreId);
+            renderTyreGrid();
+            updateTotalLifeDisplay(tyreId);
+        });
+        document.getElementById("applyDeacBtn")?.addEventListener("click",()=>{
+            let closeK = parseInt(document.getElementById("deacKmr").value);
+            let closeH = parseInt(document.getElementById("deacHmr").value);
+            if(isNaN(closeK) || isNaN(closeH)) return;
+            // find position where this tyre is mounted to scrap
+            for(let eq in equipmentMap) {
+                for(let pos of POSITIONS) {
+                    if(equipmentMap[eq][pos] === tyreId) {
+                        scrapTyre(eq, pos, "deactivated", closeK, closeH);
+                        renderTyreGrid();
+                        updateLifecycleDropdown();
+                        loadScrapList();
+                        break;
+                    }
+                }
+            }
+            renderLifecyclePanel(tyreId);
+        });
+        updateTotalLifeDisplay(tyreId);
+    }
+    function updateTotalLifeDisplay(tyreId) {
+        let life = getTotalLife(tyreId);
+        if(life) document.getElementById("totalLifeDisplay").innerHTML = `<i class="fas fa-chart-line"></i> Total KMR run: ${life.totalKmr} | Total HMR run: ${life.totalHmr}<br>Start: ${life.startKmr}/${life.startHmr} → End: ${life.endKmr}/${life.endHmr}`;
+        else document.getElementById("totalLifeDisplay").innerHTML = "—";
+    }
+
+    function loadScrapList() {
+        let eqFilter = document.getElementById("scrapEqFilter").value;
+        let reasonFilter = document.getElementById("scrapReasonFilter").value;
+        let scrapArray = [];
+        for(let tid in tyresMaster) {
+            let t = tyresMaster[tid];
+            if(t.status === "scrapped") {
+                let foundEq = null, foundPos = null;
+                for(let eq in equipmentMap) {
+                    for(let pos of POSITIONS) if(equipmentMap[eq][pos] === tid) { foundEq = eq; foundPos = pos; break; }
+                }
+                if(eqFilter && foundEq !== eqFilter) continue;
+                if(reasonFilter && t.scrapReason !== reasonFilter) continue;
+                scrapArray.push({ ...t, equipment: foundEq, position: foundPos });
+            }
+        }
+        let container = document.getElementById("scrapListContainer");
+        if(scrapArray.length===0) { container.innerHTML="<div class='text-muted'>No scrapped tyres</div>"; return; }
+        container.innerHTML = scrapArray.map(t => `<div class="scrap-item"><b>${t.tyreNumber}</b> | Reason: ${t.scrapReason||'N/A'} | Eq: ${t.equipment||'unknown'}<br>Final KMR:${t.currentKmr} HMR:${t.currentHmr} | Removed: ${new Date(t.removalDate).toLocaleDateString()}</div>`).join("");
+    }
+
+    function syncDropdowns() {
+        let scrapEqSel = document.getElementById("scrapEqFilter");
+        scrapEqSel.innerHTML = "<option value=''>All Equipment</option>" + EQUIPMENT_LIST.map(eq=>`<option>${eq}</option>`).join("");
+        let reuseSelect = document.getElementById("reuseScrapSelect");
+        let scrapTyres = Object.values(tyresMaster).filter(t=>t.status==="scrapped");
+        reuseSelect.innerHTML = "<option value=''>Select scrap tyre</option>" + scrapTyres.map(t=>`<option value="${t.tyreId}">${t.tyreNumber} (KMR:${t.currentKmr})</option>`).join("");
+        updateLifecycleDropdown();
+    }
+
+    // ----- EVENT LISTENERS & BOOT -----
+    document.addEventListener("DOMContentLoaded", () => {
+        initStorage();
+        const eqSelect = document.getElementById("equipmentSelect");
+        eqSelect.innerHTML = "<option value=''>-- Select --</option>" + EQUIPMENT_LIST.map(eq => `<option value="${eq}">${eq}</option>`).join("");
+        eqSelect.addEventListener("change", (e) => {
+            currentSelectedEq = e.target.value;
+            currentSelectedPos = null;
+            renderTyreGrid();
+            document.getElementById("selectedPositionLabel").innerText = "—";
+            document.getElementById("currentTyreMeta").innerHTML = "No tyre";
+        });
+        document.getElementById("actionModalBtn").addEventListener("click", () => {
+            if(!currentSelectedEq || !currentSelectedPos) { alert("Select position first"); return; }
+            let modal = new bootstrap.Modal(document.getElementById("tyreActionModal"));
+            document.getElementById("modalPositionDisplay").innerHTML = `Equipment: ${currentSelectedEq} | Position: ${currentSelectedPos}`;
+            document.querySelectorAll("#addForm, #moveForm, #reuseForm").forEach(f=>f.style.display="none");
+            modal.show();
+        });
+        document.querySelectorAll("[data-action]").forEach(btn=>{
+            btn.addEventListener("click",(e)=>{
+                let act = btn.dataset.action;
+                document.querySelectorAll("#addForm, #moveForm, #reuseForm").forEach(f=>f.style.display="none");
+                if(act==="add") document.getElementById("addForm").style.display="block";
+                if(act==="move") { document.getElementById("moveForm").style.display="block"; populateMoveTargets(); }
+                if(act==="reuse") { document.getElementById("reuseForm").style.display="block"; syncDropdowns(); }
+            });
+        });
+        document.getElementById("confirmAddTyre").addEventListener("click",()=>{
+            let num = document.getElementById("newTyreNum").value.trim();
+            let kmr = parseInt(document.getElementById("initKmr").value)||0;
+            let hmr = parseInt(document.getElementById("initHmr").value)||0;
+            let date = document.getElementById("issueDateAdd").value || new Date().toISOString().slice(0,10);
+            if(!num) { alert("Tyre number required"); return; }
+            let newId = createNewTyre(num, kmr, hmr, date);
+            equipmentMap[currentSelectedEq][currentSelectedPos] = newId;
+            persist();
+            renderTyreGrid();
+            updateLifecycleDropdown();
+            bootstrap.Modal.getInstance(document.getElementById("tyreActionModal")).hide();
+        });
+        document.getElementById("confirmMoveAction").addEventListener("click",()=>{
+            let kmr = parseInt(document.getElementById("moveKmr").value);
+            let hmr = parseInt(document.getElementById("moveHmr").value);
+            let targetEq = document.getElementById("targetEqMove").value;
+            let targetPos = document.getElementById("targetPosMove").value;
+            if(isNaN(kmr)||isNaN(hmr)) { alert("Enter current KMR/HMR before move"); return; }
+            let res = moveTyreProcedure(currentSelectedEq, currentSelectedPos, targetEq, targetPos, kmr, hmr);
+            alert(res.msg);
+            renderTyreGrid();
+            updateLifecycleDropdown();
+            bootstrap.Modal.getInstance(document.getElementById("tyreActionModal")).hide();
+        });
+        document.getElementById("confirmReuse").addEventListener("click",()=>{
+            let scrapId = document.getElementById("reuseScrapSelect").value;
+            let newKmr = parseInt(document.getElementById("reuseKmr").value)||0;
+            let newHmr = parseInt(document.getElementById("reuseHmr").value)||0;
+            if(!scrapId) { alert("Select scrap tyre"); return; }
+            let ok = reuseTyre(scrapId, currentSelectedEq, currentSelectedPos, newKmr, newHmr);
+            if(ok) alert("Reused successfully");
+            else alert("Failed");
+            renderTyreGrid();
+            updateLifecycleDropdown();
+            loadScrapList();
+            bootstrap.Modal.getInstance(document.getElementById("tyreActionModal")).hide();
+        });
+        document.getElementById("clearAllDataBtn").addEventListener("click",()=>{ localStorage.removeItem("tyreSystemV2"); location.reload(); });
+        document.getElementById("genSampleDataBtn").addEventListener("click",()=>{
+            // simple demo: add 1 sample tyre
+            let demoId = createNewTyre("DEMO001", 14525, 2653, "2025-01-01");
+            equipmentMap["AP39UUQ095"]["FR-LEFT"] = demoId;
+            recordStep(demoId, "Tyre Assembly Add", 14525, 2653);
+            recordStep(demoId, "T-A Tyre Move", 16524, 2865);
+            recordStep(demoId, "T-A Run", 18523, 3077);
+            recordStep(demoId, "Transfer to T-B", 23546, 3542);
+            recordStep(demoId, "Deactivate Tyre", 26541, 3652);
+            persist();
+            renderTyreGrid();
+            updateLifecycleDropdown();
+            loadScrapList();
+        });
+        document.getElementById("lifecycleTyreSelect").addEventListener("change",(e)=>{
+            let tid = e.target.value;
+            if(tid) renderLifecyclePanel(tid);
+        });
+        document.getElementById("scrapEqFilter").addEventListener("change",()=>loadScrapList());
+        document.getElementById("scrapReasonFilter").addEventListener("change",()=>loadScrapList());
+        loadScrapList();
+        updateLifecycleDropdown();
+        if(EQUIPMENT_LIST.length) currentSelectedEq = EQUIPMENT_LIST[0]; eqSelect.value = currentSelectedEq;
+        renderTyreGrid();
+        // sidebar navigation
+        document.querySelectorAll(".sidebar-menu a").forEach(link=>{
+            link.addEventListener("click",(e)=>{
+                e.preventDefault();
+                document.querySelectorAll(".sidebar-menu a").forEach(l=>l.classList.remove("active"));
+                link.classList.add("active");
+                document.querySelectorAll(".content-section").forEach(sec=>sec.classList.remove("active-content"));
+                document.getElementById(link.dataset.section).classList.add("active-content");
+                if(link.dataset.section === "scrap-archive") loadScrapList();
+                if(link.dataset.section === "lifecycle-track") updateLifecycleDropdown();
+            });
+        });
+    });
+</script>
+</body>
+</html>
