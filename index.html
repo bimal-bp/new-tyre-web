@@ -201,7 +201,6 @@
                     <h5 class="card-title">Clear All Tyre Data</h5>
                     <p class="card-text">This will delete everything stored in this session.</p>
                     <button class="btn btn-danger" id="clearAllDataBtn"><i class="fas fa-broom"></i> Clear All Data</button>
-                    <button class="btn btn-warning ms-2" id="generateSampleDataBtn"><i class="fas fa-magic"></i> Generate Sample Data</button>
                 </div>
             </div>
         </div>
@@ -278,6 +277,25 @@
             </div>
         </div>
     </div>
+
+    <!-- Tyre History Preview Modal (for Scrap Tyres) -->
+    <div class="modal fade" id="historyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyModalLabel">Tyre Full Move History</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="historyModalBody">
+                    <!-- Populated dynamically by renderStintHistory -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -310,6 +328,7 @@
             let targetEquipment = null;
             let targetPosition = null;
             let actionModal = null;
+            let historyModal = null;
             let currentHmrKmrPhoto = null;
             let currentOldTyrePhoto = null;
             const equipmentSelect = document.getElementById('equipmentSelect');
@@ -323,7 +342,6 @@
             const actionCards = document.querySelectorAll('.action-card');
             const clearScrapDataBtn = document.getElementById('clearScrapDataBtn');
             const clearAllDataBtn = document.getElementById('clearAllDataBtn');
-            const generateSampleDataBtn = document.getElementById('generateSampleDataBtn');
             const modalPositionSpan = document.getElementById('modalPosition');
             const currentTyreDetailsDiv = document.getElementById('currentTyreDetails');
             const tyreNumberInput = document.getElementById('tyreNumber');
@@ -358,7 +376,11 @@
             const blastCount = document.getElementById('blastCount');
             const punctureCount = document.getElementById('punctureCount');
             const wearCount = document.getElementById('wearCount');
+            const historyModalBody = document.getElementById('historyModalBody');
+
             actionModal = new bootstrap.Modal(document.getElementById('actionModal'));
+            historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+
             const today = new Date().toISOString().split('T')[0];
             issueDateInput.value = today;
             reuseIssueDateInput.value = today;
@@ -376,20 +398,18 @@
                 const title = document.createElement('h6');
                 title.textContent = 'Full Tyre History (Stints)';
                 container.appendChild(title);
-
                 tyre.stints.forEach((stint, index) => {
-                    const runKmr = stint.runKmr !== undefined && stint.runKmr !== null 
-                        ? stint.runKmr 
+                    const runKmr = stint.runKmr !== undefined && stint.runKmr !== null
+                        ? stint.runKmr
                         : (stint.endKmr !== null && stint.startKmr !== null ? stint.endKmr - stint.startKmr : 'N/A');
-                    const runHmr = stint.runHmr !== undefined && stint.runHmr !== null 
-                        ? stint.runHmr 
+                    const runHmr = stint.runHmr !== undefined && stint.runHmr !== null
+                        ? stint.runHmr
                         : (stint.endHmr !== null && stint.startHmr !== null ? stint.endHmr - stint.startHmr : 'N/A');
-
                     const div = document.createElement('div');
                     div.className = 'history-stint';
                     div.innerHTML = `
-                        <strong>Stint #${index + 1}</strong> — 
-                        <span class="badge bg-primary">${stint.equipment}</span> 
+                        <strong>Stint #${index + 1}</strong> —
+                        <span class="badge bg-primary">${stint.equipment}</span>
                         <span class="badge bg-secondary">${stint.position}</span><br>
                         <small><strong>Fitted:</strong> ${new Date(stint.fittedDate).toLocaleDateString()}</small><br>
                         <strong>Start:</strong> ${stint.startKmr || '—'} KMR / ${stint.startHmr || '—'} HMR &nbsp;&nbsp;
@@ -446,6 +466,7 @@
                     }];
                 }
             }
+
             // Safe storage functions
             function getEquipmentData(equipmentId) {
                 if (!equipmentId) return {};
@@ -497,7 +518,7 @@
                     ensureTyreHasStints(tyre, selectedEquipment, selectedPosition);
                     const acc = calculateAccumulatedRun(tyre);
                     currentTyreInfoDiv.innerHTML = `<strong>${tyre.tyreNumber}</strong><br><span class="tyre-life">Total Life: ${acc.kmr} KMR / ${acc.hmr} HMR</span>`;
-                    
+                   
                     // UPDATED: Show full history with KMR/HMR + tipper per stint
                     currentTyreDetailsDiv.innerHTML = `<h6>Current Tyre: ${tyre.tyreNumber} <span class="tyre-life">(${acc.kmr} km / ${acc.hmr} hrs total)</span></h6>`;
                     const historyContainer = document.createElement('div');
@@ -542,11 +563,10 @@
                 list.sort((a, b) => new Date(b.removalDate || 0) - new Date(a.removalDate || 0));
                 let html = '';
                 list.forEach(item => {
-                    // Keep scrap list clean & separate (only summary)
                     html += `<div class="scrap-item">
                         <h5>${item.tyreNumber} <span class="badge bg-${item.scrapReason==='blast'?'danger':item.scrapReason==='puncture'?'warning':'secondary'}">${item.scrapReason}</span></h5>
                         <div><strong>${item.equipment} - ${item.position}</strong> | Life: ${item.totalKmr} km / ${item.totalHmr} hrs</div>
-                        <small class="text-muted">Full move history (KMR/HMR per tipper) visible in Equipment View</small>
+                        <button class="btn btn-sm btn-outline-primary mt-2 view-history" data-tyre='${JSON.stringify(item)}'>Preview Full Move History</button>
                     </div>`;
                 });
                 scrapTyreListDiv.innerHTML = html;
@@ -719,38 +739,7 @@
                 selectedEquipment = null;
                 equipmentSelect.value = '';
                 loadTyreData();
-                loadScrapTyres('', '');
                 alert('All data cleared!');
-            }
-            function generateSampleData() {
-                const allEq = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
-                const posList = ["FR-LEFT","FR-RIGHT","CLI","CLO","CRI","CRO","BLI","BLO","BRI","BRO"];
-                allEq.forEach(eq => {
-                    const data = {};
-                    posList.forEach(pos => {
-                        const stints = [];
-                        for (let i = 0; i < (Math.random() > 0.5 ? 2 : 1); i++) {
-                            stints.push({
-                                equipment: eq,
-                                position: pos,
-                                fittedDate: new Date().toISOString(),
-                                startKmr: Math.floor(Math.random() * 20000),
-                                startHmr: Math.floor(Math.random() * 2000),
-                                removalDate: i < 1 ? new Date().toISOString() : null,
-                                endKmr: i < 1 ? Math.floor(Math.random() * 30000) : null,
-                                endHmr: i < 1 ? Math.floor(Math.random() * 3000) : null,
-                                runKmr: i < 1 ? Math.floor(Math.random() * 10000) : null,
-                                runHmr: i < 1 ? Math.floor(Math.random() * 1000) : null
-                            });
-                        }
-                        data[pos] = {
-                            current: Math.random() > 0.3 ? { tyreNumber: `TYR${Math.floor(100000 + Math.random()*900000)}`, stints: [stints[stints.length-1]] } : null,
-                            history: stints.length > 1 ? [{ tyreNumber: `TYR${Math.floor(100000 + Math.random()*900000)}`, scrapReason: 'wear', stints: stints.slice(0,-1) }] : []
-                        };
-                    });
-                    saveEquipmentData(eq, data);
-                });
-                alert('Sample data with tyre life tracking generated!');
             }
             function clearScrapData() {
                 if (!confirm('Clear scrap history?')) return;
@@ -818,16 +807,24 @@
             cancelReuseBtn.addEventListener('click', () => showForm('selection'));
             clearScrapDataBtn.addEventListener('click', clearScrapData);
             clearAllDataBtn.addEventListener('click', clearAllData);
-            generateSampleDataBtn.addEventListener('click', () => {
-                generateSampleData();
-                if (selectedEquipment) loadTyreData();
-                loadScrapTyres('', '');
+
+            // Global delegation for scrap tyre history preview buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('view-history')) {
+                    const tyreData = JSON.parse(e.target.getAttribute('data-tyre'));
+                    historyModalBody.innerHTML = `<h6>Tyre: ${tyreData.tyreNumber} <span class="tyre-life">(${tyreData.totalKmr} km / ${tyreData.totalHmr} hrs total life)</span></h6>`;
+                    const histContainer = document.createElement('div');
+                    renderStintHistory(tyreData, histContainer);
+                    historyModalBody.appendChild(histContainer);
+                    historyModal.show();
+                }
             });
+
             // ===================== START APP =====================
             equipmentSelect.value = "AP39UUQ095";
             selectedEquipment = "AP39UUQ095";
             loadTyreData();
-            loadScrapTyres('', '');
+            // Note: Scrap tyres are now loaded ONLY when user clicks the "Scrap Tyres" menu item (no auto-load on page start)
         });
     </script>
 </body>
