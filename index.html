@@ -68,6 +68,14 @@
         .positions-container { display: flex; flex-wrap: wrap; margin-top: 10px; }
         .move-instructions { background-color: #e7f5ff; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid var(--accent); }
         .tyre-life { font-size: 13px; color: #28a745; font-weight: 600; }
+        .history-stint {
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
         #storageWarning {
             display: none;
             position: fixed;
@@ -78,10 +86,16 @@
             width: 90%;
             max-width: 600px;
         }
+        .scrap-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: white;
+        }
     </style>
 </head>
 <body>
-
     <!-- STORAGE WARNING (shown only in sandbox) -->
     <div id="storageWarning" class="alert alert-danger text-center shadow">
         <strong>⚠️ Sandbox Mode Detected!</strong><br>
@@ -89,7 +103,6 @@
         <strong>Your data will be lost when you refresh.</strong><br>
         <small><strong>Fix:</strong> Copy entire code → Save as <code>tyre-management.html</code> → Open directly in Chrome/Edge</small>
     </div>
-
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-title"><h4>Tyre Management</h4></div>
@@ -99,7 +112,6 @@
             <li><a href="#" data-section="clear-data"><i class="fas fa-broom"></i> Clear Data</a></li>
         </ul>
     </div>
-
     <!-- Main Content -->
     <div class="main-content">
         <!-- Equipment View -->
@@ -132,7 +144,6 @@
                     </div>
                 </div>
             </div>
-
             <!-- Tipper Diagram -->
             <div class="tipper-diagram">
                 <div class="tipper-layout">
@@ -160,7 +171,6 @@
                 </div>
             </div>
         </div>
-
         <!-- Scrap Tyres Section -->
         <div id="scrap-tyres" class="content-section">
             <h2 class="mb-4">Scrap Tyres</h2>
@@ -183,7 +193,6 @@
                 </div>
             </div>
         </div>
-
         <!-- Clear Data Section -->
         <div id="clear-data" class="content-section">
             <h2 class="mb-4">Clear Data</h2>
@@ -197,8 +206,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Action Modal (full modal code from previous version) -->
+    <!-- Action Modal -->
     <div class="modal fade" id="actionModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -209,7 +217,6 @@
                 <div class="modal-body">
                     <p>Managing tyre for position: <strong id="modalPosition"></strong></p>
                     <div id="currentTyreDetails" class="mb-3 p-3 bg-light rounded"></div>
-
                     <div class="mb-4" id="actionSelection">
                         <h5>Select Action</h5>
                         <div class="row">
@@ -218,7 +225,6 @@
                             <div class="col-md-4 mb-3"><div class="card action-card h-100 text-center" data-action="reuse"><div class="card-body"><i class="fas fa-redo fa-3x mb-3 text-success"></i><h5>Reuse from Scrap</h5></div></div></div>
                         </div>
                     </div>
-
                     <!-- New Tyre Form -->
                     <div id="newTyreForm" class="form-section">
                         <h5>Add / Replace Tyre</h5>
@@ -237,7 +243,6 @@
                         <div class="mb-3"><label for="notes" class="form-label">Notes</label><textarea class="form-control" id="notes" rows="2"></textarea></div>
                         <div class="photo-container" id="photoPreviews"></div>
                     </div>
-
                     <!-- Move Form -->
                     <div id="moveTyreForm" class="form-section">
                         <h5>Move / Swap Tyre</h5>
@@ -256,7 +261,6 @@
                         <button id="confirm-move" class="btn btn-success mt-3">Confirm Move</button>
                         <button id="cancel-move" class="btn btn-secondary mt-3">Cancel</button>
                     </div>
-
                     <!-- Reuse Form -->
                     <div id="reuseTyreForm" class="form-section">
                         <h5>Reuse Tyre from Scrap</h5>
@@ -274,15 +278,12 @@
             </div>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-
             // ===================== SAFE STORAGE WRAPPER =====================
             let storage = null;
             let isSandbox = false;
-
             try {
                 const test = '__test__';
                 window.localStorage.setItem(test, 'ok');
@@ -299,22 +300,18 @@
                     clear: () => { Object.keys(memoryDB).forEach(k => delete memoryDB[k]); }
                 };
             }
-
             // Show warning if sandboxed
             if (isSandbox) {
                 document.getElementById('storageWarning').style.display = 'block';
             }
-
             // ===================== CORE LOGIC (stint-based tyre life) =====================
             let selectedEquipment = null;
             let selectedPosition = null;
             let targetEquipment = null;
             let targetPosition = null;
             let actionModal = null;
-
             let currentHmrKmrPhoto = null;
             let currentOldTyrePhoto = null;
-
             const equipmentSelect = document.getElementById('equipmentSelect');
             const scrapEquipmentSelect = document.getElementById('scrapEquipmentSelect');
             const scrapReasonFilter = document.getElementById('scrapReasonFilter');
@@ -327,7 +324,6 @@
             const clearScrapDataBtn = document.getElementById('clearScrapDataBtn');
             const clearAllDataBtn = document.getElementById('clearAllDataBtn');
             const generateSampleDataBtn = document.getElementById('generateSampleDataBtn');
-
             const modalPositionSpan = document.getElementById('modalPosition');
             const currentTyreDetailsDiv = document.getElementById('currentTyreDetails');
             const tyreNumberInput = document.getElementById('tyreNumber');
@@ -341,7 +337,6 @@
             const notesInput = document.getElementById('notes');
             const photoPreviewsDiv = document.getElementById('photoPreviews');
             const saveTyreBtn = document.getElementById('saveTyreBtn');
-
             const selectedTyreNumberSpan = document.getElementById('selected-tyre-number');
             const selectedPositionSpanMove = document.getElementById('selected-position');
             const targetEquipmentSelect = document.getElementById('targetEquipment');
@@ -352,27 +347,58 @@
             const targetHmrInput = document.getElementById('targetHmr');
             const confirmMoveBtn = document.getElementById('confirm-move');
             const cancelMoveBtn = document.getElementById('cancel-move');
-
             const scrapTyreSelect = document.getElementById('scrapTyreSelect');
             const reuseIssueDateInput = document.getElementById('reuseIssueDate');
             const reuseKmrInput = document.getElementById('reuseKmr');
             const reuseHmrInput = document.getElementById('reuseHmr');
-            const reuseNotesInput = document.getElementById('reuseNotes');
             const confirmReuseBtn = document.getElementById('confirm-reuse');
             const cancelReuseBtn = document.getElementById('cancel-reuse');
-
             const actionSelectionDiv = document.getElementById('actionSelection');
-
             const totalScrapCount = document.getElementById('totalScrapCount');
             const blastCount = document.getElementById('blastCount');
             const punctureCount = document.getElementById('punctureCount');
             const wearCount = document.getElementById('wearCount');
-
             actionModal = new bootstrap.Modal(document.getElementById('actionModal'));
-
             const today = new Date().toISOString().split('T')[0];
             issueDateInput.value = today;
             reuseIssueDateInput.value = today;
+
+            // ===================== NEW: DETAILED STINT HISTORY RENDERER =====================
+            function renderStintHistory(tyre, container) {
+                container.innerHTML = '';
+                if (!tyre || !tyre.stints || tyre.stints.length === 0) {
+                    const p = document.createElement('p');
+                    p.className = 'text-muted';
+                    p.innerHTML = '<em>No stint history recorded yet.</em>';
+                    container.appendChild(p);
+                    return;
+                }
+                const title = document.createElement('h6');
+                title.textContent = 'Full Tyre History (Stints)';
+                container.appendChild(title);
+
+                tyre.stints.forEach((stint, index) => {
+                    const runKmr = stint.runKmr !== undefined && stint.runKmr !== null 
+                        ? stint.runKmr 
+                        : (stint.endKmr !== null && stint.startKmr !== null ? stint.endKmr - stint.startKmr : 'N/A');
+                    const runHmr = stint.runHmr !== undefined && stint.runHmr !== null 
+                        ? stint.runHmr 
+                        : (stint.endHmr !== null && stint.startHmr !== null ? stint.endHmr - stint.startHmr : 'N/A');
+
+                    const div = document.createElement('div');
+                    div.className = 'history-stint';
+                    div.innerHTML = `
+                        <strong>Stint #${index + 1}</strong> — 
+                        <span class="badge bg-primary">${stint.equipment}</span> 
+                        <span class="badge bg-secondary">${stint.position}</span><br>
+                        <small><strong>Fitted:</strong> ${new Date(stint.fittedDate).toLocaleDateString()}</small><br>
+                        <strong>Start:</strong> ${stint.startKmr || '—'} KMR / ${stint.startHmr || '—'} HMR &nbsp;&nbsp;
+                        <strong>End:</strong> ${stint.endKmr || 'Ongoing'} KMR / ${stint.endHmr || 'Ongoing'} HMR<br>
+                        <span class="tyre-life">Run: ${runKmr} km / ${runHmr} hrs</span>
+                    `;
+                    container.appendChild(div);
+                });
+            }
 
             // Tyre life helpers
             function calculateAccumulatedRun(tyre) {
@@ -384,7 +410,6 @@
                 });
                 return { kmr, hmr };
             }
-
             function closeLastStint(tyre, closeKmr, closeHmr) {
                 if (!tyre.stints || tyre.stints.length === 0) return;
                 const last = tyre.stints[tyre.stints.length - 1];
@@ -395,7 +420,6 @@
                 if (last.startKmr != null && last.endKmr != null) last.runKmr = last.endKmr - last.startKmr;
                 if (last.startHmr != null && last.endHmr != null) last.runHmr = last.endHmr - last.startHmr;
             }
-
             function addNewStint(tyre, eq, pos, startKmr, startHmr) {
                 if (!tyre.stints) tyre.stints = [];
                 tyre.stints.push({
@@ -406,7 +430,6 @@
                     startHmr: startHmr ? parseFloat(startHmr) : null
                 });
             }
-
             function ensureTyreHasStints(tyre, eq, pos) {
                 if (!tyre.stints) {
                     tyre.stints = [{
@@ -423,7 +446,6 @@
                     }];
                 }
             }
-
             // Safe storage functions
             function getEquipmentData(equipmentId) {
                 if (!equipmentId) return {};
@@ -437,11 +459,9 @@
                 };
                 return stored ? JSON.parse(stored) : defaultData;
             }
-
             function saveEquipmentData(equipmentId, data) {
                 if (equipmentId) storage.setItem(`tyres_${equipmentId}`, JSON.stringify(data));
             }
-
             function loadTyreData() {
                 const data = getEquipmentData(selectedEquipment);
                 const positions = ["FR-LEFT","FR-RIGHT","CLI","CLO","CRI","CRO","BLI","BLO","BRI","BRO"];
@@ -453,13 +473,11 @@
                     if (status) status.textContent = '';
                     if (el) el.classList.remove('empty','blasted','selected');
                 });
-
                 Object.entries(data).forEach(([pos, posData]) => {
                     const num = document.getElementById(`position-${pos}-number`);
                     const status = document.getElementById(`position-${pos}-status`);
                     const el = document.querySelector(`[data-position="${pos}"]`);
                     if (!num || !el) return;
-
                     if (posData.current) {
                         ensureTyreHasStints(posData.current, selectedEquipment, pos);
                         num.textContent = posData.current.tyreNumber;
@@ -472,7 +490,6 @@
                     }
                 });
             }
-
             function showCurrentTyreInfo() {
                 const data = getEquipmentData(selectedEquipment);
                 const tyre = data[selectedPosition]?.current;
@@ -480,19 +497,22 @@
                     ensureTyreHasStints(tyre, selectedEquipment, selectedPosition);
                     const acc = calculateAccumulatedRun(tyre);
                     currentTyreInfoDiv.innerHTML = `<strong>${tyre.tyreNumber}</strong><br><span class="tyre-life">Total Life: ${acc.kmr} KMR / ${acc.hmr} HMR</span>`;
-                    currentTyreDetailsDiv.innerHTML = `<h6>Current Tyre</h6><div><strong>Number:</strong> ${tyre.tyreNumber}</div><div><strong>Total Life:</strong> ${acc.kmr} KMR / ${acc.hmr} HMR</div>`;
+                    
+                    // UPDATED: Show full history with KMR/HMR + tipper per stint
+                    currentTyreDetailsDiv.innerHTML = `<h6>Current Tyre: ${tyre.tyreNumber} <span class="tyre-life">(${acc.kmr} km / ${acc.hmr} hrs total)</span></h6>`;
+                    const historyContainer = document.createElement('div');
+                    renderStintHistory(tyre, historyContainer);
+                    currentTyreDetailsDiv.appendChild(historyContainer);
                 } else {
-                    currentTyreInfoDiv.innerHTML = `<span class="text-muted">No tyre</span>`;
-                    currentTyreDetailsDiv.innerHTML = `<span class="text-muted">No tyre</span>`;
+                    currentTyreInfoDiv.innerHTML = `<span class="text-muted">No tyre fitted</span>`;
+                    currentTyreDetailsDiv.innerHTML = `<span class="text-muted">No tyre in this position</span>`;
                 }
             }
-
             function loadScrapTyres(eqFilter, reasonFilter) {
                 let list = [];
                 let blast = 0, puncture = 0, wear = 0;
                 const allEq = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
                 const eqs = eqFilter ? [eqFilter] : allEq;
-
                 eqs.forEach(eq => {
                     const data = getEquipmentData(eq);
                     Object.entries(data).forEach(([pos, posData]) => {
@@ -510,25 +530,26 @@
                         }
                     });
                 });
-
                 totalScrapCount.textContent = list.length;
                 blastCount.textContent = blast;
                 punctureCount.textContent = puncture;
                 wearCount.textContent = wear;
-
                 if (list.length === 0) {
                     scrapTyreListDiv.innerHTML = '<div class="text-muted">No scrap tyres</div>';
                     scrapTyreSelect.innerHTML = '<option value="">-- No tyres --</option>';
                     return;
                 }
-
                 list.sort((a, b) => new Date(b.removalDate || 0) - new Date(a.removalDate || 0));
                 let html = '';
                 list.forEach(item => {
-                    html += `<div class="scrap-item"><h5>${item.tyreNumber} <span class="badge bg-${item.scrapReason==='blast'?'danger':item.scrapReason==='puncture'?'warning':'secondary'}">${item.scrapReason}</span></h5><div><strong>${item.equipment} - ${item.position}</strong></div><div class="tyre-life">Life: ${item.totalKmr} km / ${item.totalHmr} hrs</div></div>`;
+                    // Keep scrap list clean & separate (only summary)
+                    html += `<div class="scrap-item">
+                        <h5>${item.tyreNumber} <span class="badge bg-${item.scrapReason==='blast'?'danger':item.scrapReason==='puncture'?'warning':'secondary'}">${item.scrapReason}</span></h5>
+                        <div><strong>${item.equipment} - ${item.position}</strong> | Life: ${item.totalKmr} km / ${item.totalHmr} hrs</div>
+                        <small class="text-muted">Full move history (KMR/HMR per tipper) visible in Equipment View</small>
+                    </div>`;
                 });
                 scrapTyreListDiv.innerHTML = html;
-
                 // Reuse dropdown
                 scrapTyreSelect.innerHTML = '<option value="">-- Select --</option>';
                 list.forEach(item => {
@@ -538,7 +559,6 @@
                     scrapTyreSelect.appendChild(opt);
                 });
             }
-
             function resetTyreForm() {
                 tyreNumberInput.value = '';
                 issueDateInput.value = today;
@@ -548,7 +568,6 @@
                 photoPreviewsDiv.innerHTML = '';
                 currentHmrKmrPhoto = currentOldTyrePhoto = null;
             }
-
             function handlePhotoPreview(e, type) {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -563,18 +582,15 @@
                 };
                 reader.readAsDataURL(file);
             }
-
             function saveTyreData() {
                 let data = getEquipmentData(selectedEquipment);
                 let current = data[selectedPosition].current;
-
                 if (current) {
                     ensureTyreHasStints(current, selectedEquipment, selectedPosition);
                     closeLastStint(current, kmrInput.value, hmrInput.value);
                     if (!data[selectedPosition].history) data[selectedPosition].history = [];
                     data[selectedPosition].history.unshift(current);
                 }
-
                 const newTyre = {
                     tyreNumber: tyreNumberInput.value.trim(),
                     scrapReason: scrapReasonSelect.value,
@@ -589,25 +605,20 @@
                         startHmr: hmrInput.value ? parseFloat(hmrInput.value) : null
                     }]
                 };
-
                 data[selectedPosition].current = newTyre;
                 saveEquipmentData(selectedEquipment, data);
-
                 loadTyreData();
                 showCurrentTyreInfo();
                 if (current) loadScrapTyres('', '');
                 alert('✅ Tyre saved with life tracking!');
             }
-
             function setupMoveTyreForm() {
                 const data = getEquipmentData(selectedEquipment);
                 const tyre = data[selectedPosition].current;
                 if (!tyre) return alert('No tyre here');
-
                 ensureTyreHasStints(tyre);
                 selectedTyreNumberSpan.textContent = tyre.tyreNumber;
                 selectedPositionSpanMove.textContent = selectedPosition;
-
                 targetEquipmentSelect.innerHTML = '';
                 const allEq = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
                 allEq.forEach(eq => {
@@ -620,7 +631,6 @@
                 targetEquipment = selectedEquipment;
                 populateTargetPositions(selectedEquipment);
             }
-
             function populateTargetPositions(eq) {
                 const data = getEquipmentData(eq);
                 targetPositionsContainer.innerHTML = '';
@@ -641,74 +651,57 @@
                     targetPositionsContainer.appendChild(div);
                 });
             }
-
             function moveTyre(fromEq, fromPos, toEq, toPos, srcKmr, srcHmr, tgtKmr, tgtHmr) {
                 if (!srcKmr || !tgtKmr) return alert('Enter both source and target readings');
-
                 const same = fromEq === toEq;
                 let dataFrom = getEquipmentData(fromEq);
                 let dataTo = same ? dataFrom : getEquipmentData(toEq);
-
                 let tyreFrom = dataFrom[fromPos].current;
                 let tyreTo = dataTo[toPos].current;
-
                 if (!tyreFrom) return;
-
                 ensureTyreHasStints(tyreFrom);
                 if (tyreTo) ensureTyreHasStints(tyreTo);
-
                 closeLastStint(tyreFrom, srcKmr, srcHmr);
                 addNewStint(tyreFrom, toEq, toPos, tgtKmr, tgtHmr);
-
                 if (tyreTo) {
                     closeLastStint(tyreTo, tgtKmr, tgtHmr);
                     addNewStint(tyreTo, fromEq, fromPos, srcKmr, srcHmr);
                 }
-
                 dataFrom[fromPos].current = tyreTo || null;
                 dataTo[toPos].current = tyreFrom;
-
                 saveEquipmentData(fromEq, dataFrom);
                 if (!same) saveEquipmentData(toEq, dataTo);
-
                 loadTyreData();
                 showCurrentTyreInfo();
                 loadScrapTyres('', '');
                 alert('✅ Move completed – tyre life updated correctly!');
             }
-
             function reuseTyre() {
                 const raw = scrapTyreSelect.value;
                 if (!raw) return;
                 const tyre = JSON.parse(raw);
                 const data = getEquipmentData(selectedEquipment);
                 let current = data[selectedPosition].current;
-
                 if (current) {
                     ensureTyreHasStints(current);
                     closeLastStint(current, reuseKmrInput.value, reuseHmrInput.value);
                     if (!data[selectedPosition].history) data[selectedPosition].history = [];
                     data[selectedPosition].history.unshift(current);
                 }
-
                 ensureTyreHasStints(tyre);
                 addNewStint(tyre, selectedEquipment, selectedPosition, reuseKmrInput.value, reuseHmrInput.value);
                 tyre.scrapReason = 'reused';
-
                 data[selectedPosition].current = tyre;
                 saveEquipmentData(selectedEquipment, data);
-
                 loadTyreData();
                 showCurrentTyreInfo();
                 loadScrapTyres('', '');
                 alert('✅ Tyre reused with new stint!');
             }
-
             function showForm(action) {
                 document.querySelectorAll('.form-section').forEach(f => f.style.display = 'none');
                 actionSelectionDiv.style.display = 'none';
                 saveTyreBtn.style.display = 'none';
-
                 if (action === 'selection') actionSelectionDiv.style.display = 'block';
                 else if (action === 'add') {
                     document.getElementById('newTyreForm').style.display = 'block';
@@ -720,7 +713,6 @@
                     document.getElementById('reuseTyreForm').style.display = 'block';
                 }
             }
-
             function clearAllData() {
                 if (!confirm('Clear ALL data?')) return;
                 storage.clear();
@@ -730,7 +722,6 @@
                 loadScrapTyres('', '');
                 alert('All data cleared!');
             }
-
             function generateSampleData() {
                 const allEq = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
                 const posList = ["FR-LEFT","FR-RIGHT","CLI","CLO","CRI","CRO","BLI","BLO","BRI","BRO"];
@@ -761,7 +752,6 @@
                 });
                 alert('Sample data with tyre life tracking generated!');
             }
-
             function clearScrapData() {
                 if (!confirm('Clear scrap history?')) return;
                 const allEq = ["AP39UUQ095","AP39UUQ097","AP39UW9808","AP39UW9811","AP39UUQ451","AP39YU4652","AP39WC0921","AP39WC0924","AP39WC0928","AP39WF2057","AP39WF2051","AP39WF2052"];
@@ -772,16 +762,13 @@
                 });
                 loadScrapTyres('', '');
             }
-
             // ===================== EVENT LISTENERS =====================
             equipmentSelect.addEventListener('change', () => {
                 selectedEquipment = equipmentSelect.value;
                 if (selectedEquipment) loadTyreData();
             });
-
             scrapEquipmentSelect.addEventListener('change', () => loadScrapTyres(scrapEquipmentSelect.value, scrapReasonFilter.value));
             scrapReasonFilter.addEventListener('change', () => loadScrapTyres(scrapEquipmentSelect.value, scrapReasonFilter.value));
-
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', e => {
                     e.preventDefault();
@@ -792,9 +779,7 @@
                     if (link.dataset.section === 'scrap-tyres') loadScrapTyres('', '');
                 });
             });
-
             actionCards.forEach(card => card.addEventListener('click', () => showForm(card.dataset.action)));
-
             document.querySelectorAll('.tyre-position').forEach(el => {
                 el.addEventListener('click', () => {
                     if (!selectedEquipment) return alert('Select equipment first');
@@ -809,35 +794,28 @@
                     actionModal.show();
                 });
             });
-
             hmrKmrPhotoInput.addEventListener('change', e => handlePhotoPreview(e, 'hmrKmr'));
             oldTyrePhotoInput.addEventListener('change', e => handlePhotoPreview(e, 'oldTyre'));
-
             generateTyreNumberBtn.addEventListener('click', () => {
                 tyreNumberInput.value = `TYR${Math.floor(100000 + Math.random() * 900000)}`;
             });
-
             saveTyreBtn.addEventListener('click', () => {
                 if (!tyreNumberInput.value.trim() || !scrapReasonSelect.value) return alert('Fill required fields');
                 saveTyreData();
                 actionModal.hide();
             });
-
             targetEquipmentSelect.addEventListener('change', () => {
                 targetEquipment = targetEquipmentSelect.value;
                 populateTargetPositions(targetEquipment);
             });
-
             confirmMoveBtn.addEventListener('click', () => {
                 if (!targetPosition) return alert('Select target position');
                 moveTyre(selectedEquipment, selectedPosition, targetEquipment, targetPosition, sourceKmrInput.value, sourceHmrInput.value, targetKmrInput.value, targetHmrInput.value);
                 actionModal.hide();
             });
-
             cancelMoveBtn.addEventListener('click', () => showForm('selection'));
             confirmReuseBtn.addEventListener('click', () => { reuseTyre(); actionModal.hide(); });
             cancelReuseBtn.addEventListener('click', () => showForm('selection'));
-
             clearScrapDataBtn.addEventListener('click', clearScrapData);
             clearAllDataBtn.addEventListener('click', clearAllData);
             generateSampleDataBtn.addEventListener('click', () => {
@@ -845,7 +823,6 @@
                 if (selectedEquipment) loadTyreData();
                 loadScrapTyres('', '');
             });
-
             // ===================== START APP =====================
             equipmentSelect.value = "AP39UUQ095";
             selectedEquipment = "AP39UUQ095";
